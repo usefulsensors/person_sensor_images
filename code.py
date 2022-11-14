@@ -1,6 +1,7 @@
 # Example of accessing the Person Sensor from Useful Sensors on a Pico using
 # CircuitPython. See https://usfl.ink/ps_dev for the full developer guide.
 
+import adafruit_imageload
 import bitmaptools
 import board
 import busio
@@ -55,13 +56,34 @@ try:
 except:
     display = None
 if display:
+    group = displayio.Group()
+
     bitmap = displayio.Bitmap(display.width, display.height, 2)
     palette = displayio.Palette(2)
     palette[0] = 0x000000
     palette[1] = 0xffffff
     tile_grid = displayio.TileGrid(bitmap, pixel_shader=palette)
-    group = displayio.Group()
     group.append(tile_grid)
+
+    smiley_sheet, smiley_palette = adafruit_imageload.load(
+        "images/thumbs_up.bmp",
+        bitmap=displayio.Bitmap,
+        palette=displayio.Palette)
+    smiley_palette.make_transparent(0)
+    smiley = displayio.TileGrid(
+        smiley_sheet,
+        pixel_shader=smiley_palette,
+        width=1,
+        height=1,
+        tile_width=32,
+        tile_height=32,
+        default_tile=0,
+    )
+    smiley_group = displayio.Group()
+    smiley_group.append(smiley)
+    smiley_group.hidden = True
+    group.append(smiley_group)
+
     display.show(group)
 
 # Keep looping and reading the person sensor results.
@@ -100,7 +122,8 @@ while True:
     # If the board has a display, draw rectangles for the face boxes, and a
     # diagonal cross if the person is facing the sensor.
     if display:
-        bitmaptools.fill_region(bitmap, 0, 0, display.width, display.height, 0)
+        if num_faces == 0:
+            smiley_group.hidden = True
         for face in faces:
             box_left = face["box_left"]
             box_top = face["box_top"]
@@ -112,12 +135,11 @@ while True:
             y1 = int((box_bottom * display.height) / 256)
             print(x0, y0, x1, y1)
             print(display.width, display.height)
-            bitmaptools.draw_line(bitmap, x0, y0, x1, y0, 1)
-            bitmaptools.draw_line(bitmap, x1, y0, x1, y1, 1)
-            bitmaptools.draw_line(bitmap, x1, y1, x0, y1, 1)
-            bitmaptools.draw_line(bitmap, x0, y1, x0, y0, 1)
+            smiley_group.hidden = False
+            smiley_group.scale = 4
+            smiley_group.x = x0
+            smiley_group.y = y0
             if face["is_facing"]:
-                bitmaptools.draw_line(bitmap, x0, y0, x1, y1, 1)
-                bitmaptools.draw_line(bitmap, x1, y0, x0, y1, 1)
+                pass
 
     time.sleep(PERSON_SENSOR_DELAY)
